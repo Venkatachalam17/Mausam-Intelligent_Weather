@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
+import 'main.dart';
 
 class InterestScreen extends StatefulWidget {
   const InterestScreen({super.key});
@@ -29,7 +30,7 @@ class _InterestScreenState extends State<InterestScreen> {
 
     try {
       final dio = Dio();
-      final response = await dio.post(
+      await dio.post(
         'http://127.0.0.1:8000/api/set-interest',
         data: {"persona": _selectedPersona},
       );
@@ -38,7 +39,6 @@ class _InterestScreenState extends State<InterestScreen> {
         _loading = false;
       });
 
-      // Navigate straight to the personalized dashboard
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -62,6 +62,17 @@ class _InterestScreenState extends State<InterestScreen> {
         title: const Text("Choose Your Persona"),
         backgroundColor: Colors.blue.shade800,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: () {
+              globalThemeNotifier.value = globalThemeNotifier.value == ThemeMode.light 
+                  ? ThemeMode.dark 
+                  : ThemeMode.light;
+            },
+            icon: Icon(globalThemeNotifier.value == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode),
+            tooltip: 'Toggle theme',
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),

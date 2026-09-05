@@ -1,12 +1,17 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-
+import 'hourly_timeline.dart';
+import 'main.dart';
 import 'map_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String persona;
-  const DashboardScreen({super.key, required this.persona});
+  
+  const DashboardScreen({
+    super.key, 
+    required this.persona,
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -220,18 +225,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = globalThemeNotifier.value == ThemeMode.dark;
     final isAlert = _weatherData['is_alert'] == true;
-    final accent = isAlert ? const Color(0xffe26d5a) : const Color(0xff19647e);
+    final accent = isAlert ? const Color(0xffe26d5a) : (isDark ? const Color(0xff4ea8de) : const Color(0xff19647e));
+    
+    final bgColor = isDark ? const Color(0xff121212) : const Color(0xfff5f7f6);
+    final cardColor = isDark ? const Color(0xff1e1e1e) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xff12343b);
+    final subTextColor = isDark ? Colors.white70 : Colors.black54;
+    final borderColor = isDark ? const Color(0xff2c2c2c) : const Color(0xffdce6e4);
+
     return Scaffold(
-      backgroundColor: const Color(0xfff5f7f6),
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: const Text(
           'MAUSAM',
           style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 2),
         ),
-        backgroundColor: const Color(0xff12343b),
+        backgroundColor: isDark ? const Color(0xff1e1e1e) : const Color(0xff12343b),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            onPressed: () {
+              globalThemeNotifier.value = globalThemeNotifier.value == ThemeMode.light 
+                  ? ThemeMode.dark 
+                  : ThemeMode.light;
+              setState(() {});
+            },
+            icon: Icon(globalThemeNotifier.value == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode),
+            tooltip: 'Toggle theme',
+          ),
           IconButton(
             onPressed: _fetchCurrentLocationWeather,
             icon: const Icon(Icons.my_location),
@@ -255,15 +278,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                 children: [
-                  _buildGreeting(accent),
+                  _buildGreeting(accent, textColor),
                   const SizedBox(height: 18),
-                  _buildSearch(accent),
+                  _buildSearch(accent, cardColor, textColor),
                   const SizedBox(height: 18),
                   _buildWeatherHero(isAlert),
                   const SizedBox(height: 16),
-                  _buildMetricGrid(),
+                  _buildMetricGrid(cardColor, textColor, subTextColor, borderColor),
+                  const SizedBox(height: 18),
+                  const HourlyTimeline(),
                   const SizedBox(height: 22),
-                  _buildPlanSection(accent),
+                  _buildPlanSection(accent, cardColor, textColor, subTextColor, borderColor),
                   const SizedBox(height: 18),
                   OutlinedButton.icon(
                     onPressed: () => Navigator.push(
@@ -275,9 +300,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     icon: const Icon(Icons.layers_outlined),
                     label: const Text('Explore the live weather map'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xff12343b),
+                      foregroundColor: textColor,
                       padding: const EdgeInsets.symmetric(vertical: 15),
-                      side: const BorderSide(color: Color(0xff9bb7b9)),
+                      side: BorderSide(color: borderColor),
                     ),
                   ),
                 ],
@@ -286,7 +311,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildGreeting(Color accent) => Row(
+  Widget _buildGreeting(Color accent, Color textColor) => Row(
     crossAxisAlignment: CrossAxisAlignment.end,
     children: [
       Expanded(
@@ -304,10 +329,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 4),
             Text(
               _personalHeadline(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 25,
                 fontWeight: FontWeight.w800,
-                color: Color(0xff12343b),
+                color: textColor,
               ),
             ),
           ],
@@ -317,14 +342,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ],
   );
 
-  Widget _buildSearch(Color accent) => TextField(
+  Widget _buildSearch(Color accent, Color cardColor, Color textColor) => TextField(
     controller: _cityController,
+    style: TextStyle(color: textColor),
     onSubmitted: (city) {
       if (city.trim().isNotEmpty) _fetchDashboardData(city.trim());
     },
     decoration: InputDecoration(
       hintText: 'Search another city',
-      prefixIcon: const Icon(Icons.search),
+      hintStyle: TextStyle(color: textColor.withValues(alpha: 0.6)),
+      prefixIcon: Icon(Icons.search, color: textColor),
       suffixIcon: IconButton(
         onPressed: _fetchCurrentLocationWeather,
         icon: const Icon(Icons.gps_fixed),
@@ -332,7 +359,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         tooltip: 'Use current location',
       ),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: cardColor,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
@@ -408,15 +435,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ),
   );
 
-  Widget _buildMetricGrid() {
+  Widget _buildMetricGrid(Color cardColor, Color textColor, Color subTextColor, Color borderColor) {
     final metrics = [
       ['Humidity', _weatherData['humidity'] ?? '--', Icons.water_drop_outlined],
       ['Wind', _weatherData['wind_speed'] ?? '--', Icons.air],
-      [
-        'Visibility',
-        _weatherData['visibility'] ?? '--',
-        Icons.visibility_outlined,
-      ],
+      ['Visibility', _weatherData['visibility'] ?? '--', Icons.visibility_outlined],
       ['Pressure', _weatherData['pressure'] ?? '--', Icons.speed],
     ];
     return GridView.count(
@@ -431,9 +454,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             (metric) => Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xffdce6e4)),
+                border: Border.all(color: borderColor),
               ),
               child: Row(
                 children: [
@@ -450,16 +473,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Text(
                           metric[0] as String,
-                          style: const TextStyle(
-                            color: Colors.black54,
+                          style: TextStyle(
+                            color: subTextColor,
                             fontSize: 12,
                           ),
                         ),
                         Text(
                           metric[1].toString(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 14,
+                            color: textColor,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -474,13 +498,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildPlanSection(Color accent) {
+  Widget _buildPlanSection(Color accent, Color cardColor, Color textColor, Color subTextColor, Color borderColor) {
     final items = _planItems();
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xffdce6e4)),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         children: [
@@ -490,14 +514,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               backgroundColor: accent.withValues(alpha: .12),
               child: Icon(Icons.checklist_rounded, color: accent),
             ),
-            title: const Text(
+            title: Text(
               'Your weather plan',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: textColor),
             ),
-            subtitle: const Text('Simple actions for your day'),
+            subtitle: Text('Simple actions for your day', style: TextStyle(color: subTextColor)),
             trailing: IconButton(
               onPressed: () => setState(() => _showPlan = !_showPlan),
-              icon: Icon(_showPlan ? Icons.expand_less : Icons.expand_more),
+              icon: Icon(_showPlan ? Icons.expand_less : Icons.expand_more, color: textColor),
             ),
           ),
           if (_showPlan)
@@ -512,7 +536,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 title: Text(
                   item['text'] as String,
-                  style: const TextStyle(fontSize: 14, height: 1.3),
+                  style: TextStyle(fontSize: 14, height: 1.3, color: textColor),
                 ),
               ),
             ),
