@@ -37,20 +37,30 @@ def set_user_interest(data: UserInterest):
     }
 
 @app.get("/api/dashboard/{persona}")
-def get_dashboard_data(persona: str, city: str = "Coimbatore", lat: float = None, lon: float = None):
+def get_dashboard_data(
+    persona: str, 
+    city: str = "Coimbatore", 
+    lat: float = None, 
+    lon: float = None, 
+    lang: str = "en"
+):
     api_key = "181e14f619b9946b6fae721dbe3c5cf4"
     resolved_city = city
     
+    lang_map = {
+        "en": "English",
+        "ta": "Tamil",
+        "hi": "Hindi"
+    }
+    selected_language = lang_map.get(lang, "English")
+    
     if lat is not None and lon is not None:
         url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
-        
-        # Reverse geocode to get precise local neighborhood/suburb name
         try:
             nominatim_url = f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lon}"
             geo_response = requests.get(nominatim_url, headers={'User-Agent': 'MausamWeatherApp/1.0'})
             geo_data = geo_response.json()
             address = geo_data.get('address', {})
-            
             resolved_city = (
                 address.get('suburb') or 
                 address.get('neighbourhood') or 
@@ -75,7 +85,6 @@ def get_dashboard_data(persona: str, city: str = "Coimbatore", lat: float = None
             wind_speed = data['wind']['speed']
             visibility = data.get('visibility', 10000) / 1000
             condition = data['weather'][0]['description'].capitalize()
-            # If search was by city name, fall back to OpenWeatherMap's resolved city name
             if lat is None:
                 resolved_city = data['name']
         else:
@@ -91,19 +100,42 @@ def get_dashboard_data(persona: str, city: str = "Coimbatore", lat: float = None
     elif wind_speed > 8 or humidity > 70:
         risk_level = "Moderate Risk"
 
-    ai_text = f"As a {persona} in {resolved_city}, expect {condition.lower()} with a temperature of {round(temp)}°C."
+    # Ask Gemini to return a JSON-like structured response or translated UI labels along with advice
+    ai_advice = f"As a {persona} in {resolved_city}, expect {condition.lower()} with {temp}°C."
+    ai_headline = f"A workable day for your fields"
+    ai_plan_1 = "Review irrigation needs before midday."
+    ai_plan_2 = "A good window for field work."
+    ai_plan_3 = "Wind conditions are manageable."
 
     try:
         response_ai = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=f"""You are the core intelligence of the Mausam weather app. Provide a detailed, professional, yet punchy advisory for a {persona} currently in {resolved_city}. 
+            model='gemini-1.5-flash',
+            contents=f"""You are the core intelligence of the Mausam weather app. Provide weather details for a {persona} in {resolved_city}.
             Live Conditions: Temperature: {temp}°C, Condition: {condition}, Humidity: {humidity}%, Wind Speed: {wind_speed} m/s.
-            Give a 3-part breakdown: 1. Immediate Impact, 2. Key Risk Factor, 3. Actionable Recommendation."""
+            
+            CRITICAL: Provide your response strictly in the following format, entirely written in {selected_language}:
+            HEADLINE: [A short 3-6 word punchy sentence suitable for the persona based on weather]
+            ADVICE: [Detailed 3-part advisory: 1. Immediate Impact, 2. Key Risk Factor, 3. Actionable Recommendation]
+            PLAN1: [First action item for the day]
+            PLAN2: [Second action item for the day]
+            PLAN3: [Third action item for the day]"""
         )
-        if response_ai.text:
-            ai_text = response_ai.text.strip()
+        text = response_ai.text.strip()
+        # Simple line parser
+        lines = text.split('\n')
+        for line in lines:
+            if line.startswith("HEADLINE:"):
+                ai_headline = line.replace("HEADLINE:", "").strip()
+            elif line.startswith("ADVICE:"):
+                ai_advice = line.replace("ADVICE:", "").strip()
+            elif line.startswith("PLAN1:"):
+                ai_plan_1 = line.replace("PLAN1:", "").strip()
+            elif line.startswith("PLAN2:"):
+                ai_plan_2 = line.replace("PLAN2:", "").strip()
+            elif line.startswith("PLAN3:"):
+                ai_plan_3 = line.replace("PLAN3:", "").strip()
     except Exception as e:
-        print(f"GEMINI API ERROR: {e}")
+        print(f"🔥 GEMINI API ERROR: {e}")
 
     return {
         "location": resolved_city,
@@ -114,7 +146,9 @@ def get_dashboard_data(persona: str, city: str = "Coimbatore", lat: float = None
         "wind_speed": f"{wind_speed} m/s",
         "visibility": f"{visibility} km",
         "pressure": f"{pressure} hPa",
-        "advice": ai_text,
+        "headline": ai_headline,
+        "advice": ai_advice,
+        "plan_items": [ai_plan_1, ai_plan_2, ai_plan_3],
         "risk_level": risk_level,
         "is_alert": is_alert
     }

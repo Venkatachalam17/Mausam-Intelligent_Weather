@@ -20,6 +20,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _loading = true;
   bool _showPlan = true;
+  String _currentLang = "en"; // Default to English
   Map<String, dynamic> _weatherData = {};
   final TextEditingController _cityController = TextEditingController();
 
@@ -39,7 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _loading = true);
     try {
       final response = await Dio().get(
-        'http://127.0.0.1:8000/api/dashboard/${widget.persona}?city=$city',
+        'http://127.0.0.1:8000/api/dashboard/${widget.persona}?city=$city&lang=$_currentLang',
       );
       if (!mounted) return;
       setState(() {
@@ -71,7 +72,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
       final response = await Dio().get(
-        'http://127.0.0.1:8000/api/dashboard/${widget.persona}?lat=${position.latitude}&lon=${position.longitude}',
+        'http://127.0.0.1:8000/api/dashboard/${widget.persona}?lat=${position.latitude}&lon=${position.longitude}&lang=$_currentLang',
       );
       if (!mounted) return;
       setState(() {
@@ -81,11 +82,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  double _number(String key) {
-    final value = _weatherData[key]?.toString() ?? '';
-    return double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
   }
 
   IconData _conditionIcon() {
@@ -102,125 +98,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return Icons.thunderstorm;
     }
     return Icons.wb_sunny;
-  }
-
-  String _personalHeadline() {
-    final temp = _number('temperature');
-    final humidity = _number('humidity');
-    if (widget.persona == 'Farmer') {
-      return humidity > 70
-          ? 'A humid day for your fields'
-          : 'A workable day for your fields';
-    }
-    if (widget.persona == 'Fitness Enthusiast') {
-      return temp > 32
-          ? 'Keep your workout light today'
-          : 'Good energy for getting outside';
-    }
-    if (widget.persona == 'Event Planner') {
-      return _weatherData['is_alert'] == true
-          ? 'Build a weather backup into your plan'
-          : 'Your outdoor window looks promising';
-    }
-    return _weatherData['is_alert'] == true
-        ? 'Allow extra time for your commute'
-        : 'Your commute window looks comfortable';
-  }
-
-  List<Map<String, dynamic>> _planItems() {
-    final temp = _number('temperature');
-    final humidity = _number('humidity');
-    final wind = _number('wind_speed');
-    final rainy = (_weatherData['condition'] ?? '')
-        .toString()
-        .toLowerCase()
-        .contains('rain');
-    if (widget.persona == 'Farmer') {
-      return [
-        {
-          'icon': Icons.water_drop_outlined,
-          'text': humidity > 70
-              ? 'Check for excess moisture before watering.'
-              : 'Review irrigation needs before midday.',
-        },
-        {
-          'icon': Icons.grass,
-          'text': temp > 34
-              ? 'Protect young plants from peak heat.'
-              : 'A good window for field work.',
-        },
-        {
-          'icon': Icons.air,
-          'text': wind > 8
-              ? 'Secure lightweight covers and equipment.'
-              : 'Wind conditions are manageable.',
-        },
-      ];
-    }
-    if (widget.persona == 'Fitness Enthusiast') {
-      return [
-        {
-          'icon': Icons.schedule,
-          'text': temp > 32
-              ? 'Choose an early or late workout window.'
-              : 'Aim for an outdoor session today.',
-        },
-        {
-          'icon': Icons.water_drop_outlined,
-          'text': humidity > 70
-              ? 'Carry extra water and take recovery breaks.'
-              : 'Hydration needs look normal.',
-        },
-        {
-          'icon': Icons.directions_run,
-          'text': rainy
-              ? 'Have an indoor backup ready.'
-              : 'Outdoor movement looks comfortable.',
-        },
-      ];
-    }
-    if (widget.persona == 'Event Planner') {
-      return [
-        {
-          'icon': Icons.umbrella_outlined,
-          'text': rainy
-              ? 'Keep a covered area ready for guests.'
-              : 'No rain signal in the current conditions.',
-        },
-        {
-          'icon': Icons.air,
-          'text': wind > 8
-              ? 'Recheck decor, signage, and lightweight structures.'
-              : 'Wind should be friendly to setup.',
-        },
-        {
-          'icon': Icons.access_time,
-          'text': temp > 34
-              ? 'Schedule setup before the afternoon heat.'
-              : 'The current temperature is event-friendly.',
-        },
-      ];
-    }
-    return [
-      {
-        'icon': rainy ? Icons.umbrella_outlined : Icons.directions_walk,
-        'text': rainy
-            ? 'Carry rain protection for the journey.'
-            : 'Walking conditions look comfortable.',
-      },
-      {
-        'icon': Icons.traffic,
-        'text': wind > 8
-            ? 'Allow extra time on exposed routes.'
-            : 'No wind-related travel concern right now.',
-      },
-      {
-        'icon': Icons.wb_sunny_outlined,
-        'text': temp > 34
-            ? 'Prefer shade and avoid the hottest travel window.'
-            : 'A light layer should be enough.',
-      },
-    ];
   }
 
   @override
@@ -245,6 +122,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: isDark ? const Color(0xff1e1e1e) : const Color(0xff12343b),
         foregroundColor: Colors.white,
         actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.language),
+            tooltip: 'Select Language',
+            onSelected: (String langCode) {
+              setState(() {
+                _currentLang = langCode;
+              });
+              _fetchDashboardData((_weatherData['location'] ?? 'Coimbatore').toString());
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(value: 'en', child: Text('English')),
+              const PopupMenuItem<String>(value: 'ta', child: Text('தமிழ் (Tamil)')),
+              const PopupMenuItem<String>(value: 'hi', child: Text('हिन्दी (Hindi)')),
+            ],
+          ),
           IconButton(
             onPressed: () {
               globalThemeNotifier.value = globalThemeNotifier.value == ThemeMode.light 
@@ -284,6 +176,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 18),
                   _buildWeatherHero(isAlert),
                   const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.auto_awesome, color: accent, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _currentLang == 'ta' ? 'மௌசம் நுண்ணறிவு ஆலோசனை' : (_currentLang == 'hi' ? 'मौसम बुद्धिमत्ता सलाह' : 'Mausam Intelligence Advisory'),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          (_weatherData['advice'] ?? '').toString(),
+                          style: TextStyle(fontSize: 14, height: 1.4, color: textColor),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   _buildMetricGrid(cardColor, textColor, subTextColor, borderColor),
                   const SizedBox(height: 18),
                   const HourlyTimeline(),
@@ -298,7 +222,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     icon: const Icon(Icons.layers_outlined),
-                    label: const Text('Explore the live weather map'),
+                    label: Text(_currentLang == 'ta' ? 'நேரலை வானிலை வரைபடத்தை ஆராயுங்கள்' : (_currentLang == 'hi' ? 'लाइव मौसम मानचित्र देखें' : 'Explore the live weather map')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: textColor,
                       padding: const EdgeInsets.symmetric(vertical: 15),
@@ -311,36 +235,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildGreeting(Color accent, Color textColor) => Row(
-    crossAxisAlignment: CrossAxisAlignment.end,
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Good day, ${widget.persona}',
-              style: TextStyle(
-                color: accent,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
+  Widget _buildGreeting(Color accent, Color textColor) {
+    final headlineText = (_weatherData['headline'] ?? '').toString();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _currentLang == 'ta' ? 'வணக்கம், ${widget.persona}' : (_currentLang == 'hi' ? 'नमस्ते, ${widget.persona}' : 'Good day, ${widget.persona}'),
+                style: TextStyle(
+                  color: accent,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _personalHeadline(),
-              style: TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.w800,
-                color: textColor,
+              const SizedBox(height: 4),
+              Text(
+                headlineText,
+                style: TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.w800,
+                  color: textColor,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      const Icon(Icons.wb_twilight, color: Color(0xffe4a853), size: 42),
-    ],
-  );
+        const Icon(Icons.wb_twilight, color: Color(0xffe4a853), size: 42),
+      ],
+    );
+  }
 
   Widget _buildSearch(Color accent, Color cardColor, Color textColor) => TextField(
     controller: _cityController,
@@ -349,7 +276,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (city.trim().isNotEmpty) _fetchDashboardData(city.trim());
     },
     decoration: InputDecoration(
-      hintText: 'Search another city',
+      hintText: _currentLang == 'ta' ? 'மற்றொரு நகரத்தைத் தேடுங்கள்' : (_currentLang == 'hi' ? 'दूसरा शहर खोजें' : 'Search another city'),
       hintStyle: TextStyle(color: textColor.withValues(alpha: 0.6)),
       prefixIcon: Icon(Icons.search, color: textColor),
       suffixIcon: IconButton(
@@ -394,12 +321,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: const TextStyle(color: Colors.white70, fontSize: 16),
               ),
             ),
-            if (isAlert)
+            // Map button placed nicely right on the top-left/top-right of the hero card
+            IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MapScreen(persona: widget.persona),
+                ),
+              ),
+              icon: const Icon(Icons.map_outlined, color: Colors.white70, size: 22),
+              tooltip: 'Live Weather Map',
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+            ),
+            if (isAlert) ...[
+              const SizedBox(width: 10),
               const Icon(
                 Icons.warning_amber_rounded,
                 color: Colors.white,
                 size: 24,
               ),
+            ],
           ],
         ),
         const SizedBox(height: 18),
@@ -428,7 +370,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Feels like ${_weatherData['feels_like'] ?? '--'}  •  ${_weatherData['risk_level'] ?? 'Low Risk'}',
+          _currentLang == 'ta'
+              ? 'உணர்வு ${_weatherData['feels_like'] ?? '--'}  •  ${_weatherData['risk_level'] ?? 'குறைந்த ஆபத்து'}'
+              : (_currentLang == 'hi'
+                  ? 'महसूस होता है ${_weatherData['feels_like'] ?? '--'}  •  ${_weatherData['risk_level'] ?? 'कम जोखिम'}'
+                  : 'Feels like ${_weatherData['feels_like'] ?? '--'}  •  ${_weatherData['risk_level'] ?? 'Low Risk'}'),
           style: const TextStyle(color: Colors.white70),
         ),
       ],
@@ -436,11 +382,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   );
 
   Widget _buildMetricGrid(Color cardColor, Color textColor, Color subTextColor, Color borderColor) {
+    final hLabel = _currentLang == 'ta' ? 'ஈரப்பதம்' : (_currentLang == 'hi' ? 'नमी' : 'Humidity');
+    final wLabel = _currentLang == 'ta' ? 'காற்று' : (_currentLang == 'hi' ? 'हवा' : 'Wind');
+    final vLabel = _currentLang == 'ta' ? 'दृश्यता' : (_currentLang == 'hi' ? 'दृश्यता' : 'Visibility');
+    final pLabel = _currentLang == 'ta' ? 'அழுத்தம்' : (_currentLang == 'hi' ? 'दवाब' : 'Pressure');
+
     final metrics = [
-      ['Humidity', _weatherData['humidity'] ?? '--', Icons.water_drop_outlined],
-      ['Wind', _weatherData['wind_speed'] ?? '--', Icons.air],
-      ['Visibility', _weatherData['visibility'] ?? '--', Icons.visibility_outlined],
-      ['Pressure', _weatherData['pressure'] ?? '--', Icons.speed],
+      [hLabel, _weatherData['humidity'] ?? '--', Icons.water_drop_outlined],
+      [wLabel, _weatherData['wind_speed'] ?? '--', Icons.air],
+      [vLabel, _weatherData['visibility'] ?? '--', Icons.visibility_outlined],
+      [pLabel, _weatherData['pressure'] ?? '--', Icons.speed],
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -499,7 +450,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildPlanSection(Color accent, Color cardColor, Color textColor, Color subTextColor, Color borderColor) {
-    final items = _planItems();
+    final List planList = _weatherData['plan_items'] ?? [
+      'Check for excess moisture before watering.',
+      'Review irrigation needs before midday.',
+      'Protect young plants from peak heat.'
+    ];
+
+    final planTitle = _currentLang == 'ta' ? 'உங்கள் வானிலை திட்டம்' : (_currentLang == 'hi' ? 'आपकी मौसम योजना' : 'Your weather plan');
+    final planSubtitle = _currentLang == 'ta' ? 'உங்கள் நாளுக்கான எளிய செயல்கள்' : (_currentLang == 'hi' ? 'आपके दिन के लिए सरल उपाय' : 'Simple actions for your day');
+
+    final icons = [Icons.water_drop_outlined, Icons.grass, Icons.air];
+
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -515,31 +476,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Icon(Icons.checklist_rounded, color: accent),
             ),
             title: Text(
-              'Your weather plan',
+              planTitle,
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: textColor),
             ),
-            subtitle: Text('Simple actions for your day', style: TextStyle(color: subTextColor)),
+            subtitle: Text(planSubtitle, style: TextStyle(color: subTextColor)),
             trailing: IconButton(
               onPressed: () => setState(() => _showPlan = !_showPlan),
               icon: Icon(_showPlan ? Icons.expand_less : Icons.expand_more, color: textColor),
             ),
           ),
           if (_showPlan)
-            ...items.map(
-              (item) => ListTile(
+            ...List.generate(planList.length, (index) {
+              return ListTile(
                 dense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20),
                 leading: Icon(
-                  item['icon'] as IconData,
+                  icons[index % icons.length],
                   color: accent,
                   size: 21,
                 ),
                 title: Text(
-                  item['text'] as String,
+                  planList[index].toString(),
                   style: TextStyle(fontSize: 14, height: 1.3, color: textColor),
                 ),
-              ),
-            ),
+              );
+            }),
         ],
       ),
     );
