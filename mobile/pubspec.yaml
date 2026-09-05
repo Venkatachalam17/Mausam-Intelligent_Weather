@@ -37,6 +37,7 @@ dependencies:
   dio: ^5.11.1
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
+  geolocator: ^10.1.0
 
 dev_dependencies:
   flutter_test:
@@ -90,3 +91,4 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+

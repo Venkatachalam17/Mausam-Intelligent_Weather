@@ -37,9 +37,32 @@ def set_user_interest(data: UserInterest):
     }
 
 @app.get("/api/dashboard/{persona}")
-def get_dashboard_data(persona: str, city: str = "Coimbatore"):
+def get_dashboard_data(persona: str, city: str = "Coimbatore", lat: float = None, lon: float = None):
     api_key = "181e14f619b9946b6fae721dbe3c5cf4"
-    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+    resolved_city = city
+    
+    if lat is not None and lon is not None:
+        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
+        
+        # Reverse geocode to get precise local neighborhood/suburb name
+        try:
+            nominatim_url = f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lon}"
+            geo_response = requests.get(nominatim_url, headers={'User-Agent': 'MausamWeatherApp/1.0'})
+            geo_data = geo_response.json()
+            address = geo_data.get('address', {})
+            
+            resolved_city = (
+                address.get('suburb') or 
+                address.get('neighbourhood') or 
+                address.get('city_district') or 
+                address.get('town') or 
+                address.get('city') or 
+                "Coimbatore"
+            )
+        except Exception:
+            resolved_city = "Coimbatore"
+    else:
+        url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
     
     try:
         response = requests.get(url)
@@ -50,15 +73,16 @@ def get_dashboard_data(persona: str, city: str = "Coimbatore"):
             humidity = data['main']['humidity']
             pressure = data['main']['pressure']
             wind_speed = data['wind']['speed']
-            visibility = data.get('visibility', 10000) / 1000 # in km
+            visibility = data.get('visibility', 10000) / 1000
             condition = data['weather'][0]['description'].capitalize()
-            resolved_city = data['name']
+            # If search was by city name, fall back to OpenWeatherMap's resolved city name
+            if lat is None:
+                resolved_city = data['name']
         else:
-            return {"error": "City not found!"}
+            return {"error": "Location not found!"}
     except Exception:
         return {"error": "Failed to fetch weather data."}
 
-    # Intelligent Risk calculation based on actual weather metrics
     is_alert = False
     risk_level = "Low Risk"
     if wind_speed > 12 or humidity > 85 or temp > 38:
@@ -67,26 +91,14 @@ def get_dashboard_data(persona: str, city: str = "Coimbatore"):
     elif wind_speed > 8 or humidity > 70:
         risk_level = "Moderate Risk"
 
-    # Default fallback description if API fails or blocks
-    ai_text = f"As a {persona} in {resolved_city}, expect {condition.lower()} with a temperature of {round(temp)}°C (feels like {round(feels_like)}°C). Wind speeds are at {wind_speed} m/s with {humidity}% humidity. Plan your schedule accordingly to stay ahead of local atmospheric shifts!"
+    ai_text = f"As a {persona} in {resolved_city}, expect {condition.lower()} with a temperature of {round(temp)}°C."
 
     try:
         response_ai = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=f"""You are the core intelligence of the Mausam weather app. Provide a detailed, professional, yet punchy advisory for a {persona} currently in {resolved_city}. 
-            Live Conditions:
-            - Temperature: {temp}°C (Feels like {feels_like}°C)
-            - Condition: {condition}
-            - Humidity: {humidity}%
-            - Wind Speed: {wind_speed} m/s
-            - Pressure: {pressure} hPa
-            - Risk Level: {risk_level}
-
-            Give a comprehensive 3-part breakdown:
-            1. Immediate Impact on your activities.
-            2. Key Risk Factor to watch out for.
-            3. Actionable Recommendation.
-            Keep it clean, highly descriptive, and tailored directly to their persona."""
+            Live Conditions: Temperature: {temp}°C, Condition: {condition}, Humidity: {humidity}%, Wind Speed: {wind_speed} m/s.
+            Give a 3-part breakdown: 1. Immediate Impact, 2. Key Risk Factor, 3. Actionable Recommendation."""
         )
         if response_ai.text:
             ai_text = response_ai.text.strip()
