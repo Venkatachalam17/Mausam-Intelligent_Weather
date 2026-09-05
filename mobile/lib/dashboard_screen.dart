@@ -20,13 +20,20 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _loading = true;
   bool _showPlan = true;
+  bool _isAutoMode = false;
   String _currentLang = "en"; // Default to English
+  String _activePersona = "Commuter";
   Map<String, dynamic> _weatherData = {};
   final TextEditingController _cityController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _activePersona = widget.persona;
+    if (_activePersona.toLowerCase() == 'auto') {
+      _isAutoMode = true;
+      _activePersona = 'Commuter'; // Default backend seed for auto
+    }
     _fetchDashboardData('Coimbatore');
   }
 
@@ -39,12 +46,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _fetchDashboardData(String city) async {
     setState(() => _loading = true);
     try {
+      // If auto mode is on, send 'Auto' to backend, otherwise send the specific persona
+      final queryPersona = _isAutoMode ? 'Auto' : _activePersona;
       final response = await Dio().get(
-        'http://127.0.0.1:8000/api/dashboard/${widget.persona}?city=$city&lang=$_currentLang',
+        'http://127.0.0.1:8000/api/dashboard/$queryPersona?city=$city&lang=$_currentLang',
       );
       if (!mounted) return;
       setState(() {
         _weatherData = Map<String, dynamic>.from(response.data);
+        // If backend returned the dynamically resolved persona, update the display name!
+        if (_weatherData.containsKey('persona')) {
+          _activePersona = _weatherData['persona'];
+        }
         _loading = false;
       });
     } catch (_) {
@@ -71,12 +84,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
+      final queryPersona = _isAutoMode ? 'Auto' : _activePersona;
       final response = await Dio().get(
-        'http://127.0.0.1:8000/api/dashboard/${widget.persona}?lat=${position.latitude}&lon=${position.longitude}&lang=$_currentLang',
+        'http://127.0.0.1:8000/api/dashboard/$queryPersona?lat=${position.latitude}&lon=${position.longitude}&lang=$_currentLang',
       );
       if (!mounted) return;
       setState(() {
         _weatherData = Map<String, dynamic>.from(response.data);
+        if (_weatherData.containsKey('persona')) {
+          _activePersona = _weatherData['persona'];
+        }
         _loading = false;
       });
     } catch (_) {
@@ -115,13 +132,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        title: const Text(
-          'MAUSAM',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 2),
+        title: Text(
+          _isAutoMode ? 'MAUSAM (AUTO: $_activePersona)' : 'MAUSAM',
+          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 2, fontSize: 16),
         ),
         backgroundColor: isDark ? const Color(0xff1e1e1e) : const Color(0xff12343b),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _isAutoMode = !_isAutoMode;
+                if (!_isAutoMode) {
+                  _activePersona = widget.persona; // revert to original
+                }
+              });
+              _fetchDashboardData((_weatherData['location'] ?? 'Coimbatore').toString());
+            },
+            icon: Icon(_isAutoMode ? Icons.flash_on : Icons.flash_off, color: _isAutoMode ? Colors.amber : Colors.white),
+            tooltip: 'Toggle Auto-Adaptive Persona',
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.language),
             tooltip: 'Select Language',
@@ -218,7 +248,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => MapScreen(persona: widget.persona),
+                        builder: (_) => MapScreen(persona: _activePersona),
                       ),
                     ),
                     icon: const Icon(Icons.layers_outlined),
@@ -245,7 +275,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _currentLang == 'ta' ? 'வணக்கம், ${widget.persona}' : (_currentLang == 'hi' ? 'नमस्ते, ${widget.persona}' : 'Good day, ${widget.persona}'),
+                _currentLang == 'ta' 
+                    ? 'வணக்கம், $_activePersona' 
+                    : (_currentLang == 'hi' ? 'नमस्ते, $_activePersona' : 'Good day, $_activePersona'),
                 style: TextStyle(
                   color: accent,
                   fontWeight: FontWeight.w700,
@@ -321,12 +353,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: const TextStyle(color: Colors.white70, fontSize: 16),
               ),
             ),
-            // Map button placed nicely right on the top-left/top-right of the hero card
             IconButton(
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => MapScreen(persona: widget.persona),
+                  builder: (_) => MapScreen(persona: _activePersona),
                 ),
               ),
               icon: const Icon(Icons.map_outlined, color: Colors.white70, size: 22),

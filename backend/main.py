@@ -100,17 +100,36 @@ def get_dashboard_data(
     elif wind_speed > 8 or humidity > 70:
         risk_level = "Moderate Risk"
 
-    # Ask Gemini to return a JSON-like structured response or translated UI labels along with advice
-    ai_advice = f"As a {persona} in {resolved_city}, expect {condition.lower()} with {temp}°C."
-    ai_headline = f"A workable day for your fields"
-    ai_plan_1 = "Review irrigation needs before midday."
-    ai_plan_2 = "A good window for field work."
-    ai_plan_3 = "Wind conditions are manageable."
+    # Auto-adaptive persona detection if persona is set to 'Auto'
+    resolved_persona = persona
+    if persona.lower() == "auto":
+        try:
+            persona_res = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=f"""Analyze the live weather in {resolved_city}: Temp {temp}°C, Condition {condition}, Humidity {humidity}%. 
+                Select the single most fitting persona for these conditions from this exact list: 'Farmer', 'Fitness Enthusiast', 'Event Planner', 'Commuter'.
+                CRITICAL: Return ONLY the persona name, nothing else."""
+            )
+            detected = persona_res.text.strip()
+            for p in ['Farmer', 'Fitness Enthusiast', 'Event Planner', 'Commuter']:
+                if p.lower() in detected.lower():
+                    resolved_persona = p
+                    break
+            if resolved_persona.lower() == "auto":
+                resolved_persona = "Commuter"
+        except Exception:
+            resolved_persona = "Commuter"
+
+    ai_advice = f"As a {resolved_persona} in {resolved_city}, expect {condition.lower()} with {temp}°C."
+    ai_headline = f"A workable day for your schedule"
+    ai_plan_1 = "Review conditions before midday."
+    ai_plan_2 = "A good window for outdoor activities."
+    ai_plan_3 = "Weather conditions are manageable."
 
     try:
         response_ai = client.models.generate_content(
             model='gemini-1.5-flash',
-            contents=f"""You are the core intelligence of the Mausam weather app. Provide weather details for a {persona} in {resolved_city}.
+            contents=f"""You are the core intelligence of the Mausam weather app. Provide weather details for a {resolved_persona} in {resolved_city}.
             Live Conditions: Temperature: {temp}°C, Condition: {condition}, Humidity: {humidity}%, Wind Speed: {wind_speed} m/s.
             
             CRITICAL: Provide your response strictly in the following format, entirely written in {selected_language}:
@@ -121,7 +140,6 @@ def get_dashboard_data(
             PLAN3: [Third action item for the day]"""
         )
         text = response_ai.text.strip()
-        # Simple line parser
         lines = text.split('\n')
         for line in lines:
             if line.startswith("HEADLINE:"):
@@ -139,6 +157,7 @@ def get_dashboard_data(
 
     return {
         "location": resolved_city,
+        "persona": resolved_persona,
         "temperature": f"{round(temp)}°C",
         "feels_like": f"{round(feels_like)}°C",
         "condition": condition,
