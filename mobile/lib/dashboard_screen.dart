@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'chat_screen.dart'; // 🚀 AI chat screen import
 import 'hourly_timeline.dart';
 import 'main.dart';
 import 'map_screen.dart';
@@ -22,7 +23,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _currentLang = "en";
   String _activePersona = "Commuter";
 
-  // 🚀 Initialized with safe defaults so the UI NEVER shows "--" if network drops!
   Map<String, dynamic> _weatherData = {
     'location': 'Coimbatore',
     'temperature': '30°C',
@@ -249,6 +249,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
             tooltip: 'Use current location',
           ),
         ],
+      ),
+      // 🚀 Floating Action Button fixed to the bottom right!
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ChatScreen()),
+          );
+        },
+        backgroundColor: const Color(0xff19647e),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.chat_bubble_outline),
+        label: const Text("AI Chat"),
+        tooltip: 'Open Mausam AI Chat',
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
