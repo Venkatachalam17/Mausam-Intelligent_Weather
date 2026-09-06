@@ -23,25 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _currentLang = "en";
   String _activePersona = "Commuter";
 
-  Map<String, dynamic> _weatherData = {
-    'location': 'Coimbatore',
-    'temperature': '30°C',
-    'feels_like': '32°C',
-    'condition': 'Clear sky',
-    'humidity': '65%',
-    'wind_speed': '4.5 m/s',
-    'visibility': '10.0 km',
-    'pressure': '1012 hPa',
-    'headline': 'A wonderful day for your tasks',
-    'advice': 'Weather conditions are optimal for your schedule.',
-    'risk_level': 'Low Risk',
-    'is_alert': false,
-    'plan_items': [
-      'Review conditions before midday.',
-      'A great window for outdoor tasks.',
-      'Stay hydrated throughout the day.',
-    ],
-  };
+  Map<String, dynamic> _weatherData = {};
 
   final TextEditingController _cityController = TextEditingController();
   final ApiService _apiService = ApiService();
@@ -86,7 +68,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       print("🔥 DASHBOARD FETCH ERROR: $e");
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _weatherData = {'error': 'Failed to connect to backend: $e'};
+        });
+      }
     }
   }
 
@@ -95,7 +82,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        if (mounted) setState(() => _loading = false);
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _weatherData = {'error': 'Location services are disabled.'};
+          });
+        }
         return;
       }
       LocationPermission permission = await Geolocator.checkPermission();
@@ -104,7 +96,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        if (mounted) setState(() => _loading = false);
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _weatherData = {'error': 'Location permissions are denied.'};
+          });
+        }
         return;
       }
       final position = await Geolocator.getCurrentPosition(
@@ -135,7 +132,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       print("🔥 LOCATION WEATHER ERROR: $e");
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _weatherData = {'error': 'Failed to fetch location weather: $e'};
+        });
+      }
     }
   }
 
@@ -250,7 +252,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      // 🚀 Floating Action Button fixed to the bottom right!
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
@@ -268,9 +269,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _weatherData.containsKey('error')
           ? Center(
-              child: Text(
-                _weatherData['error'].toString(),
-                style: const TextStyle(color: Colors.red, fontSize: 18),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _weatherData['error'].toString(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red, fontSize: 16),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => _fetchDashboardData('Coimbatore'),
+                      child: const Text("Retry"),
+                    ),
+                  ],
+                ),
               ),
             )
           : RefreshIndicator(

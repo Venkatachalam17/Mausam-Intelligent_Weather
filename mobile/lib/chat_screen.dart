@@ -44,10 +44,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     } catch (e) {
       setState(() {
-        _messages.add({
-          "sender": "bot",
-          "message": "Network error! Check your connection.",
-        });
+        _messages.add({"sender": "bot", "message": "Chat error: $e"});
         _loading = false;
       });
     }
@@ -99,6 +96,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       hintText: "Ask about weather or suggestions...",
                       border: OutlineInputBorder(),
                     ),
+                    onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 IconButton(

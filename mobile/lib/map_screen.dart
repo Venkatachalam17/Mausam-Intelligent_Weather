@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:dio/dio.dart';
+
+import 'services/api_service.dart';
 
 class MapScreen extends StatefulWidget {
   final String persona;
@@ -17,6 +18,7 @@ class _MapScreenState extends State<MapScreen> {
   Map<String, dynamic> _clickedWeatherData = {};
   bool _isLoadingPoint = false;
   late final MapOptions _mapOptions;
+  final ApiService _apiService = ApiService();
 
   // Preset locations list, but users can click anywhere else too!
   final List<Map<String, dynamic>> _presetLocations = [
@@ -92,22 +94,48 @@ class _MapScreenState extends State<MapScreen> {
     });
 
     try {
-      final dio = Dio();
-      // Using OpenWeatherMap coordinates endpoint
-      final apiKey = "181e14f619b9946b6fae721dbe3c5cf4";
-      final response = await dio.get(
-        'https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lng&appid=$apiKey&units=metric',
+      // Route through your backend dashboard API for robust live data fetch
+      final response = await _apiService.dio.get(
+        '/api/dashboard/${widget.persona}',
+        queryParameters: {'lat': lat, 'lon': lng},
       );
 
       if (!mounted) return;
+
+      // Map the backend response fields to match what the map UI expects
+      final data = response.data;
       setState(() {
-        _clickedWeatherData = response.data;
+        _clickedWeatherData = {
+          'name': data['location'] ?? 'Custom Location',
+          'weather': [
+            {'description': data['condition'] ?? 'Clear'},
+          ],
+          'main': {
+            'temp':
+                double.tryParse(
+                  data['temperature'].toString().replaceAll('°C', ''),
+                ) ??
+                30.0,
+            'humidity':
+                int.tryParse(data['humidity'].toString().replaceAll('%', '')) ??
+                65,
+          },
+          'wind': {
+            'speed':
+                double.tryParse(
+                  data['wind_speed'].toString().replaceAll(' m/s', ''),
+                ) ??
+                4.5,
+          },
+        };
         _isLoadingPoint = false;
       });
     } catch (e) {
+      print("🔥 MAP WEATHER ERROR: $e");
       if (!mounted) return;
       setState(() {
         _isLoadingPoint = false;
+        _clickedWeatherData = {'name': 'Error fetching location weather'};
       });
     }
   }
@@ -235,7 +263,9 @@ class _MapScreenState extends State<MapScreen> {
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 6),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
