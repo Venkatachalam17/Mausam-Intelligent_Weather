@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
-import 'chat_screen.dart'; // 🚀 AI chat screen import
 import 'hourly_timeline.dart';
 import 'main.dart';
 import 'map_screen.dart';
@@ -252,19 +251,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ChatScreen()),
-          );
-        },
-        backgroundColor: const Color(0xff19647e),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.chat_bubble_outline),
-        label: const Text("AI Chat"),
-        tooltip: 'Open Mausam AI Chat',
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _weatherData.containsKey('error')
@@ -306,6 +292,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildSearch(accent, cardColor, textColor),
                   const SizedBox(height: 18),
                   _buildWeatherHero(isAlert),
+                  const SizedBox(height: 16),
+                  // ✨ ChatGPT Style Smart Insight Card
+                  _buildSmartInsightCard(cardColor, textColor, borderColor),
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(18),
@@ -430,6 +419,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const Icon(Icons.wb_twilight, color: Color(0xffe4a853), size: 42),
       ],
+    );
+  }
+
+  Widget _buildSmartInsightCard(
+    Color cardColor,
+    Color textColor,
+    Color borderColor,
+  ) {
+    final smartInsight = (_weatherData['smart_insight'] ?? '').toString();
+    final actionableTip = (_weatherData['actionable_tip'] ?? '').toString();
+
+    if (smartInsight.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xff4ea8de), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xff4ea8de).withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.lightbulb_rounded,
+                color: Color(0xff4ea8de),
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "Smart Insight",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            smartInsight,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            actionableTip,
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1.3,
+              color: textColor.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -4,13 +4,11 @@ from pydantic import BaseModel, Field
 import requests
 import traceback
 import os
-from google import genai
-from google.genai import types
 
 # Read API key directly from environment for Render safety
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-app = FastAPI(title="Mausam Gemini-Powered Intelligent Weather API")
+app = FastAPI(title="Mausam Intelligent Weather API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,12 +16,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-# Explicitly use v1 API version to prevent 404 model routing errors with flash models
-client = genai.Client(
-    api_key=GEMINI_API_KEY,
-    http_options=types.HttpOptions(api_version="v1")
 )
 
 class UserInterest(BaseModel):
@@ -45,22 +37,6 @@ def set_user_interest(payload: UserInterest = None, persona: str = Query(default
         "message": f"Persona set to {resolved_persona}! Custom weather engine initialized.",
         "persona": resolved_persona
     }
-
-@app.get("/api/chat")
-def weather_chat(message: str = Query(default="Hello")):
-    try:
-        # Using gemini-2.5-flash with v1 api version explicitly configured on the client
-        response_ai = client.models.generate_content(
-            model='gemini-2.5-flash', 
-            contents=f"You are Mausam AI, a friendly weather assistant. Answer this user question concisely and helpfully: {message}"
-        )
-        reply = response_ai.text.strip()
-    except Exception as e:
-        print("🔥 FULL EXCEPTION TRACEBACK:")
-        traceback.print_exc()
-        reply = f"DEBUG ERROR: {str(e)}"
-    
-    return {"reply": reply}
 
 @app.get("/api/dashboard/{persona}")
 def get_dashboard_data(
@@ -127,26 +103,80 @@ def get_dashboard_data(
 
     resolved_persona = persona if persona.lower() != "auto" else "Commuter"
 
+    # Dynamic contextual smart insight generation
+    smart_insight = f"Conditions are stable at {round(temp)}°C with {condition.lower()}."
+    actionable_tip = "Enjoy your day and stay comfortable!"
+    
+    if "rain" in condition.lower() or "shower" in condition.lower() or humidity > 80:
+        smart_insight = f"🌧️ Rain or high moisture detected ({humidity}% humidity). Wet roads expected!"
+        actionable_tip = "Recommendation: Carry a raincoat or umbrella and consider leaving 15 minutes earlier."
+    elif temp > 35:
+        smart_insight = f"☀️ Intense heat warning! Temperature feels like {round(feels_like)}°C."
+        actionable_tip = "Recommendation: Stay hydrated and avoid direct sunlight during peak afternoon hours."
+    elif wind_speed > 8:
+        smart_insight = f"💨 Strong winds blowing at {wind_speed} m/s."
+        actionable_tip = "Recommendation: Secure loose outdoor items and ride carefully if traveling by bike."
+
     templates = {
         "Farmer": {
-            "headline": "Optimal moisture window for fields",
+            "headline": "Optimal moisture window for fields" if humidity < 75 else "High humidity crop watch alert",
             "advice": f"Immediate Impact: Temperature at {round(temp)}°C affects soil evaporation rates. Key Risk Factor: Humidity levels around {humidity}% require careful irrigation tracking. Actionable Recommendation: Proceed with morning crop monitoring.",
-            "plans": ["Check soil moisture levels before sunrise", "Postpone heavy chemical spraying if wind picks up", "Ensure proper drainage in low-lying sections"]
+            "plans": [
+                "Check soil moisture levels before sunrise", 
+                "Postpone heavy chemical spraying if wind picks up", 
+                "Ensure proper drainage in low-lying sections",
+                "Inspect greenhouse ventilation for trapped humidity"
+            ]
         },
         "Fitness Enthusiast": {
-            "headline": "Great conditions for your outdoor run",
-            "advice": f"Immediate Impact: Current {condition.lower()} provides a comfortable training window. Key Risk Factor: UV index and humidity may cause early fatigue. Actionable Recommendation: Stay hydrated and pace your session.",
-            "plans": ["Complete intense cardio before peak afternoon heat", "Carry adequate electrolytes and water", "Wear breathable fabrics for current humidity"]
+            "headline": "Great conditions for your outdoor run" if temp < 32 else "High heat index — pace yourself",
+            "advice": f"Immediate Impact: Current {condition.lower()} provides a training window. Key Risk Factor: UV index and humidity may cause early fatigue. Actionable Recommendation: Stay hydrated and adjust your pace.",
+            "plans": [
+                "Complete intense cardio before peak afternoon heat", 
+                "Carry adequate electrolytes and water", 
+                "Wear breathable fabrics for current humidity",
+                "Opt for shaded park trails instead of open asphalt"
+            ]
         },
         "Commuter": {
-            "headline": "Smooth transit conditions expected today",
+            "headline": "Smooth transit conditions expected today" if wind_speed < 8 else "Windy transit conditions — stay alert",
             "advice": f"Immediate Impact: Visibility is clear at {visibility} km with stable wind speeds. Key Risk Factor: Minor traffic congestion during peak hours. Actionable Recommendation: Leave slightly early for your commute.",
-            "plans": ["Check live transit updates before leaving", "Keep light rain gear handy just in case", "Opt for standard routes to avoid delays"]
+            "plans": [
+                "Check live transit updates before leaving", 
+                "Keep light rain gear handy just in case", 
+                "Opt for standard routes to avoid delays",
+                "Allow an extra 10 minutes for platform queues"
+            ]
         },
         "Event Planner": {
-            "headline": "Favorable weather for outdoor setups",
-            "advice": f"Immediate Impact: Stable atmospheric pressure of {pressure} hPa supports outdoor arrangements. Key Risk Factor: Temperature shifts toward midday. Actionable Recommendation: Secure tents and check cooling stations.",
-            "plans": ["Verify vendor arrival times early", "Ensure shaded seating areas are ready", "Monitor wind speeds near temporary structures"]
+            "headline": "Favorable weather for outdoor setups" if pressure > 1010 else "Unstable pressure — secure structures",
+            "advice": f"Immediate Impact: Atmospheric pressure of {pressure} hPa supports outdoor arrangements. Key Risk Factor: Temperature shifts toward midday. Actionable Recommendation: Secure tents and check cooling stations.",
+            "plans": [
+                "Verify vendor arrival times early", 
+                "Ensure shaded seating areas are ready", 
+                "Monitor wind speeds near temporary structures",
+                "Have a backup indoor cooling tent designated"
+            ]
+        },
+        "Delivery Rider": {
+            "headline": "Fast delivery window across the city",
+            "advice": f"Immediate Impact: Road surface temperature is influenced by {round(temp)}°C air temp. Key Risk Factor: Visibility and wind resistance. Actionable Recommendation: Check tire grip and wear high-visibility gear.",
+            "plans": [
+                "Keep waterproof covers over your delivery box", 
+                "Take 5-minute hydration breaks every hour", 
+                "Check live map detours for peak rush hours",
+                "Inspect rain gear before heading out"
+            ]
+        },
+        "Student": {
+            "headline": "Ideal campus walk weather ahead",
+            "advice": f"Immediate Impact: Comfortable environment at {round(temp)}°C for lectures and outdoor study. Key Risk Factor: Sudden weather shifts by evening. Actionable Recommendation: Pack a lightweight jacket.",
+            "plans": [
+                "Charge your devices before heading to the library", 
+                "Keep a compact umbrella in your backpack", 
+                "Take a study break during peak sunlight hours",
+                "Grab a warm beverage if heading out post-sunset"
+            ]
         }
     }
 
@@ -164,6 +194,8 @@ def get_dashboard_data(
         "pressure": f"{pressure} hPa",
         "headline": selected_template["headline"],
         "advice": selected_template["advice"],
+        "smart_insight": smart_insight,
+        "actionable_tip": actionable_tip,
         "plan_items": selected_template["plans"],
         "risk_level": risk_level,
         "is_alert": is_alert
