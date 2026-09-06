@@ -5,6 +5,7 @@ import requests
 import traceback
 import os
 from google import genai
+from google.genai import types
 
 # Read API key directly from environment for Render safety
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -19,7 +20,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+# Explicitly use v1 API version to prevent 404 model routing errors with flash models
+client = genai.Client(
+    api_key=GEMINI_API_KEY,
+    http_options=types.HttpOptions(api_version="v1")
+)
 
 class UserInterest(BaseModel):
     persona: str = Field(default="Commuter")
@@ -44,9 +49,9 @@ def set_user_interest(payload: UserInterest = None, persona: str = Query(default
 @app.get("/api/chat")
 def weather_chat(message: str = Query(default="Hello")):
     try:
-        # Using gemini-1.5-flash for maximum stability and speed
+        # Using gemini-2.5-flash with v1 api version explicitly configured on the client
         response_ai = client.models.generate_content(
-            model='gemini-1.5-flash', 
+            model='gemini-2.5-flash', 
             contents=f"You are Mausam AI, a friendly weather assistant. Answer this user question concisely and helpfully: {message}"
         )
         reply = response_ai.text.strip()
