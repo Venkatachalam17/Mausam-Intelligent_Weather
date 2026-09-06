@@ -44,16 +44,16 @@ def set_user_interest(payload: UserInterest = None, persona: str = Query(default
 @app.get("/api/chat")
 def weather_chat(message: str = Query(default="Hello")):
     try:
-        # Using a reliable model version to prevent 404 crashes
+        # Updated to gemini-3.6-flash as requested by the API error response
         response_ai = client.models.generate_content(
-            model='gemini-2.5-flash', 
+            model='gemini-3.6-flash', 
             contents=f"You are Mausam AI, a friendly weather assistant. Answer this user question concisely and helpfully: {message}"
         )
         reply = response_ai.text.strip()
     except Exception as e:
         print("🔥 FULL EXCEPTION TRACEBACK:")
         traceback.print_exc()
-        reply = "Oops! I am having trouble thinking right now. Try again in a second!"
+        reply = f"DEBUG ERROR: {str(e)}"
     
     return {"reply": reply}
 
