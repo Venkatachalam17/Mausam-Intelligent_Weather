@@ -3,8 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import requests
 import traceback
+import os
 from google import genai
-from config import GEMINI_API_KEY
+
+# Read API key directly from environment for Render safety
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 app = FastAPI(title="Mausam Gemini-Powered Intelligent Weather API")
 
@@ -162,6 +165,5 @@ def get_dashboard_data(
 
 if __name__ == "__main__":
     import uvicorn
-    import os
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
