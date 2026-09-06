@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 class ApiService {
   // 🧭 Set this to TRUE if you want to test your live Render cloud URL while debugging!
   // Set it to FALSE if you want to use your local machine backend.
-  static const bool _forceCloudInDebug = false;
+  static const bool _forceCloudInDebug = true;
 
   static String get _baseUrl {
     if (kDebugMode && !_forceCloudInDebug) {
