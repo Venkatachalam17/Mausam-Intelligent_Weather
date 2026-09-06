@@ -44,9 +44,9 @@ def set_user_interest(payload: UserInterest = None, persona: str = Query(default
 @app.get("/api/chat")
 def weather_chat(message: str = Query(default="Hello")):
     try:
-        # Updated to gemini-3.6-flash as requested by the API error response
+        # Using gemini-1.5-flash for maximum stability and speed
         response_ai = client.models.generate_content(
-            model='gemini-3.6-flash', 
+            model='gemini-1.5-flash', 
             contents=f"You are Mausam AI, a friendly weather assistant. Answer this user question concisely and helpfully: {message}"
         )
         reply = response_ai.text.strip()
