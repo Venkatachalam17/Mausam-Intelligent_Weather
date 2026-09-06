@@ -42,7 +42,7 @@ def set_user_interest(payload: UserInterest = None, persona: str = Query(default
 def weather_chat(message: str = Query(default="Hello")):
     try:
         response_ai = client.models.generate_content(
-            model='gemini-3.6-flash',  # 🚀 Fixed to gemini-3.6-flash!
+            model='gemini-2.5-flash', 
             contents=f"You are Mausam AI, a friendly weather assistant. Answer this user question concisely and helpfully: {message}"
         )
         reply = response_ai.text.strip()
@@ -164,4 +164,4 @@ if __name__ == "__main__":
     import uvicorn
     import os
     port = int(os.environ.get("PORT", 10000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)
