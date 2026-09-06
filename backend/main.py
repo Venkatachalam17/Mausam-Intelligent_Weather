@@ -44,6 +44,7 @@ def set_user_interest(payload: UserInterest = None, persona: str = Query(default
 @app.get("/api/chat")
 def weather_chat(message: str = Query(default="Hello")):
     try:
+        # Using a reliable model version to prevent 404 crashes
         response_ai = client.models.generate_content(
             model='gemini-2.5-flash', 
             contents=f"You are Mausam AI, a friendly weather assistant. Answer this user question concisely and helpfully: {message}"
@@ -80,7 +81,7 @@ def get_dashboard_data(
             url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
             try:
                 nominatim_url = f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lon}"
-                geo_response = requests.get(nominatim_url, headers={'User-Agent': 'MausamWeatherApp/1.0'}, timeout=2)
+                geo_response = requests.get(nominatim_url, headers={'User-Agent': 'MausamWeatherApp/1.0'}, timeout=3)
                 geo_data = geo_response.json()
                 address = geo_data.get('address', {})
                 resolved_city = (
@@ -96,7 +97,7 @@ def get_dashboard_data(
         else:
             url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
         
-        response = requests.get(url, timeout=3)
+        response = requests.get(url, timeout=5)
         if response.status_code == 200:
             data = response.json()
             temp = data['main']['temp']
