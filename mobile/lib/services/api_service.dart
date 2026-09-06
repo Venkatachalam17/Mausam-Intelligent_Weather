@@ -17,8 +17,12 @@ class ApiService {
   final Dio dio = Dio(
     BaseOptions(
       baseUrl: _baseUrl,
-      connectTimeout: const Duration(seconds: 5),
-      receiveTimeout: const Duration(seconds: 5),
+      connectTimeout: const Duration(
+        seconds: 30,
+      ), // 🚀 Increased to 30s so Gemini has time to respond
+      receiveTimeout: const Duration(
+        seconds: 30,
+      ), // 🚀 Increased to 30s so it doesn't abort mid-stream
     ),
   );
 
