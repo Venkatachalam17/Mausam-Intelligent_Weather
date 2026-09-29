@@ -5,8 +5,18 @@ import requests
 import traceback
 import os
 
-# Read API key directly from environment for Render safety
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+# Try importing from local config.py (ignored by git), fallback to environment variables for deployment (Render)
+try:
+    import config
+    WEATHER_API_KEY = getattr(config, "WEATHER_API_KEY", None)
+    GEMINI_API_KEY = getattr(config, "GEMINI_API_KEY", None)
+except ImportError:
+    WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY")
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+# Safety check to ensure the key exists
+if not WEATHER_API_KEY:
+    raise ValueError("⚠️ WEATHER_API_KEY is missing! Make sure it is defined in your config.py or environment variables.")
 
 app = FastAPI(title="Mausam Intelligent Weather API")
 
@@ -46,7 +56,6 @@ def get_dashboard_data(
     lon: float = None, 
     lang: str = "en"
 ):
-    api_key = "181e14f619b9946b6fae721dbe3c5cf4"
     resolved_city = city
     
     temp = 30.0
@@ -59,7 +68,7 @@ def get_dashboard_data(
 
     try:
         if lat is not None and lon is not None:
-            url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
+            url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={WEATHER_API_KEY}&units=metric"
             try:
                 nominatim_url = f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lon}"
                 geo_response = requests.get(nominatim_url, headers={'User-Agent': 'MausamWeatherApp/1.0'}, timeout=3)
@@ -76,7 +85,7 @@ def get_dashboard_data(
             except Exception:
                 pass
         else:
-            url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+            url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={WEATHER_API_KEY}&units=metric"
         
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
